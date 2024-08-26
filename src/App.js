@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
 import './App.css';
 
+function pad(num, size) {
+  num = num.toString();
+  while (num.length < size) num = "0" + num;
+  return num;
+}
+
 function App() {
   const [videoSrc, setVideoSrc] = useState('');
   const [message, setMessage] = useState('Click Start to transcode');
@@ -13,9 +19,20 @@ function App() {
     await ffmpeg.load();
     setMessage('Start transcoding');
     ffmpeg.FS('writeFile', 'test.avi', await fetchFile('/flame.avi'));
-    await ffmpeg.run('-i', 'test.avi', 'test.mp4');
+    for (let i = 0; i < 218; i++) {
+      let pngFile = i.toString().padStart(7, '0');
+      ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(`/frames/${pngFile}.png`));
+    }
+
+    // await ffmpeg.run('-i', 'test.avi', 'test.mp4');
+    await ffmpeg.run(
+        '-i', 'test.avi',
+        '-framerate', '30', '-loop', '1', '-i', '%07d.png',
+        '-c:v', 'libvpx-vp9', '-b:v', '1M',
+        '-filter_complex', 'overlay=shortest=1',
+        'test.webm');
     setMessage('Complete transcoding');
-    const data = ffmpeg.FS('readFile', 'test.mp4');
+    const data = ffmpeg.FS('readFile', 'test.webm');
     setVideoSrc(URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' })));
   };
   return (
