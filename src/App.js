@@ -1,5 +1,5 @@
-import React, {useEffect, useRef, useState} from 'react';
-import { createFFmpeg, fetchFile } from '@ffmpeg/ffmpeg';
+import React, {useRef, useState} from 'react';
+import {createFFmpeg, fetchFile} from '@ffmpeg/ffmpeg';
 import './App.css';
 
 function pad(num, size) {
@@ -15,33 +15,61 @@ function App() {
     // canvas
     const canvasRef = useRef(null);
     const [dataURL, setDataURL] = useState('');
-    const [frames, setFrames] = useState([]);
-    const [frameIndex, setFrameIndex] = useState(0);
 
     const startAnimation = async (callback) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
 
-        let x = 0;
-        let y = 50;
         let frameCount = 0;
+
+
+        const subtitles = [
+            { text: "Hello", start: 0, end: 1 },
+            { text: "Guys,", start: 1, end: 2 },
+            { text: "This", start: 2, end: 3 },
+            { text: "is", start: 3, end: 4 },
+            { text: "a", start: 4, end: 5 },
+            { text: "test", start: 5, end: 6 },
+            { text: "for", start: 6, end: 7 },
+            { text: "captions", start: 7, end: 8 },
+            { text: "😊", start: 8, end: 9 },
+        ];
+
+        let currentTime = 0;
+        let fadeInDuration = 1;  // 1 second
+        let fadeOutDuration = 1; // 1 second
+
+        const drawSubtitle = (subtitle, opacity) => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(subtitle.text, canvas.width / 2, canvas.height - 5);
+        }
+
         const animate = async () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+            currentTime += 0.05; // Increment time by 50ms
 
-            // Draw a rectangle
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(x, y, 100, 50);
+            const subtitle = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
 
-            // Capture the frame
+            if (subtitle) {
+                let opacity = 1;
+                if (currentTime < subtitle.start + fadeInDuration) {
+                    opacity = (currentTime - subtitle.start) / fadeInDuration; // Fade in
+                } else if (currentTime > subtitle.end - fadeOutDuration) {
+                    opacity = (subtitle.end - currentTime) / fadeOutDuration; // Fade out
+                }
+
+                drawSubtitle(subtitle, opacity);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+
             await captureFrame(frameCount);
 
-            // Update position for animation
-            x += 2;
-            if (x > canvas.width) x = -100;
-
             frameCount++;
-            setFrameIndex(frameCount);
-            if (frameCount < 10) {
+            if (frameCount < 1000) {
                 requestAnimationFrame(animate);
             } else {
                 callback()
@@ -49,24 +77,14 @@ function App() {
         };
 
         const  captureFrame = async (frameCount) => {
-            // const dataURL = canvas.toDataURL('image/png');
-            // setFrames(prevFrames => [...prevFrames, dataURL]);
             canvas.toBlob(async (blob) => {
                 if (blob) {
-                    // const blobURL = URL.createObjectURL(blob);
-                    // setFrames(prevFrames => [...prevFrames, blobURL]);
-                    // console.log("blob xxx", blob.toString())
-
-                    // console.log('frames lol', URL.createObjectURL(blob))
-                    // let temp = new Blob([blob], { type: 'image/png' })
-                    // ffmpeg.FS('writeFile', `${pngFile}.png`, URL.createObjectURL(temp));
 
                     let pngFile = frameCount.toString().padStart(7, '0');
                     const url = await blobToDataURL(blob);
                     setDataURL(url);
                     ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(url));
 
-                    // setFrames(prevFrames => [...prevFrames, blob]);
                 }
             }, 'image/png');
         };
@@ -122,7 +140,7 @@ function App() {
             <p/>
             <video src={videoSrc} controls></video>
             <br/>
-            <canvas ref={canvasRef} width="500" height="400" style={{border:'1px solid #000'}}></canvas>
+            <canvas ref={canvasRef} width="256" height="240" style={{border:'1px solid #000'}}></canvas>
 
             {dataURL && <img src={dataURL} alt="Canvas Image" />}
             <button onClick={doTranscode}>Start</button>
