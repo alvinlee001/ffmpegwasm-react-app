@@ -113,7 +113,7 @@ function App() {
         startAnimation(async () => {
 
             setMessage('Start transcoding');
-            ffmpeg.FS('writeFile', 'test.avi', await fetchFile('/flame.avi'));
+            ffmpeg.FS('writeFile', 'test.mp4', await fetchFile('/waves.mp4'));
             // for (let i = 0; i < frames.length; i++) {
             //   let pngFile = i.toString().padStart(7, '0');
             //   console.log('frames lol', frames[i])
@@ -125,13 +125,17 @@ function App() {
 
             // await ffmpeg.run('-i', 'test.avi', 'test.mp4');
             await ffmpeg.run(
-                '-i', 'test.avi',
+                '-i', 'test.mp4',
                 '-framerate', '30', '-loop', '1', '-i', '%07d.png',
-                '-c:v', 'libvpx-vp9', '-b:v', '1M',
+                '-c:v', 'libx264',
+                '-c:a', 'copy',
+                // '-b:v', '2M',
+                '-crf', '11',
                 '-filter_complex', 'overlay=shortest=1',
-                'test.webm');
+                '-threads', '8',
+                'output.mp4');
             setMessage('Complete transcoding');
-            const data = ffmpeg.FS('readFile', 'test.webm');
+            const data = ffmpeg.FS('readFile', 'output.mp4');
             setVideoSrc(URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' })));
         });
     };
