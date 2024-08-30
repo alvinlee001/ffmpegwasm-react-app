@@ -48,8 +48,10 @@ function App() {
             // ctx.fillText(subtitle.text, canvas.width / 2, canvas.height - 5);
 
             let fontSize = 48;
-            if (opacity >= 0 && opacity < 0.3) {
-                fontSize = fontSize + (Math.abs(0.15 - Math.abs(opacity - 0.15)) * fontSize) ;
+            const bounceMultiplier = 4
+            const bounceDuration = 0.2;
+            if (opacity >= 0 && opacity < bounceDuration) {
+                fontSize = fontSize + (Math.abs((bounceDuration/2) - Math.abs(opacity - (bounceDuration/2))) * fontSize) * bounceMultiplier;
             }
 
             ctx.font = `bold ${fontSize}px Arial`; // Bold font
