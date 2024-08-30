@@ -9,14 +9,16 @@ function pad(num, size) {
 }
 
 function App() {
-    const [videoSrc, setVideoSrc] = useState('');
+    const timeIncrement = 0.025
+    const [videoSrc, setVideoSrc] = useState('waves.mp4');
     const [message, setMessage] = useState('Click Start to transcode');
 
     // canvas
     const canvasRef = useRef(null);
+    const videoRef = useRef(null);
     const [dataURL, setDataURL] = useState('');
 
-    const startAnimation = async (callback) => {
+    const startAnimation = async (callback, isPreview = false) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
 
@@ -69,7 +71,7 @@ function App() {
         }
 
         const animate = async () => {
-            currentTime += 0.025; // Increment time by 50ms
+            currentTime += timeIncrement; // Increment time by 50ms
 
             const subtitle = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
 
@@ -86,7 +88,7 @@ function App() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
 
-            await captureFrame(frameCount);
+            await captureFrame(frameCount, isPreview);
 
             frameCount++;
             if (frameCount < 500) {
@@ -96,17 +98,29 @@ function App() {
             }
         };
 
-        const  captureFrame = async (frameCount) => {
-            canvas.toBlob(async (blob) => {
-                if (blob) {
-
-                    let pngFile = frameCount.toString().padStart(7, '0');
-                    const url = await blobToDataURL(blob);
-                    setDataURL(url);
-                    ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(url));
-
-                }
-            }, 'image/png');
+        const captureFrame = async (frameCount, isPreview) => {
+            function timeout(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+            if (isPreview) {
+                    await timeout(timeIncrement * 1000);
+                    canvas.toBlob(async (blob) => {
+                        if (blob) {
+                            let pngFile = frameCount.toString().padStart(7, '0');
+                            const url = await blobToDataURL(blob);
+                            setDataURL(url);
+                            ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(url));
+                        }
+                    }, 'image/png');
+            } else {
+                canvas.toBlob(async (blob) => {
+                    if (blob) {
+                        let pngFile = frameCount.toString().padStart(7, '0');
+                        const url = await blobToDataURL(blob);
+                        ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(url));
+                    }
+                }, 'image/png');
+            }
         };
 
         // Start animation
@@ -127,6 +141,19 @@ function App() {
     const ffmpeg = createFFmpeg({
         log: true,
     });
+    const doPreview = async () => {
+
+        const video = videoRef.current;
+        setMessage('Previewing output video');
+        await ffmpeg.load();
+        video.currentTime = 0;
+        video.play()
+        startAnimation(async () => {
+            video.pause();
+            video.currentTime = 0;
+            setMessage('Preview complete');
+        }, true);
+    }
     const doTranscode = async () => {
         setMessage('Loading ffmpeg-core.js');
         await ffmpeg.load();
@@ -146,12 +173,12 @@ function App() {
             // await ffmpeg.run('-i', 'test.avi', 'test.mp4');
             await ffmpeg.run(
                 '-i', 'test.mp4',
-                '-framerate', '60', '-i', '%07d.png',
+                '-framerate', ''+1/timeIncrement, '-i', '%07d.png',
                 '-c:v', 'libx264',
                 '-c:a', 'copy',
                 // '-b:v', '2M',
-                '-crf', '11',
-                // '-crf', '40',
+                // '-crf', '11',
+                '-crf', '40',
                 '-filter_complex', 'overlay',
                 '-threads', '8',
                 'output.mp4');
@@ -163,11 +190,17 @@ function App() {
     return (
         <div className="App">
             <p/>
-            <video src={videoSrc} controls></video>
-            <br/>
-            <canvas ref={canvasRef} width="898" height="253" style={{border:'1px solid #000', display: "none"}}></canvas>
+            <div style={{position: "relative", height: "500px"}}>
 
-            {dataURL && <img src={dataURL} alt="Canvas Image" />}
+                {dataURL &&
+                    <img src={dataURL} alt="Canvas Image" style={{position: "absolute", left: 0, zIndex: 1000}}/>}
+                <video src={videoSrc} ref={videoRef} controls style={{"position": "absolute", "left": 0}}></video>
+            </div>
+            <br/>
+            <canvas ref={canvasRef} width="898" height="253"
+                    style={{border: '1px solid #000', display: "none"}}></canvas>
+
+            <button onClick={doPreview}>Preview</button>
             <button onClick={doTranscode}>Start</button>
             <p>{message}</p>
         </div>
