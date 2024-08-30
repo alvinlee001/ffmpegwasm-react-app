@@ -16,7 +16,6 @@ function App() {
     // canvas
     const canvasRef = useRef(null);
     const videoRef = useRef(null);
-    const [dataURL, setDataURL] = useState('');
 
     const startAnimation = async (callback, isPreview = false) => {
         const canvas = canvasRef.current;
@@ -88,31 +87,23 @@ function App() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
 
-            await captureFrame(frameCount, isPreview);
+            if (!isPreview) {
+                await captureFrame(frameCount, isPreview);
+            }
 
             frameCount++;
             if (frameCount < 500) {
-                requestAnimationFrame(animate);
+                if(isPreview) {
+                    setTimeout(animate,timeIncrement * 1000)
+                } else {
+                    requestAnimationFrame(animate);
+                }
             } else {
                 callback()
             }
         };
 
         const captureFrame = async (frameCount, isPreview) => {
-            function timeout(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
-            if (isPreview) {
-                    await timeout(timeIncrement * 1000);
-                    canvas.toBlob(async (blob) => {
-                        if (blob) {
-                            let pngFile = frameCount.toString().padStart(7, '0');
-                            const url = await blobToDataURL(blob);
-                            setDataURL(url);
-                            ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(url));
-                        }
-                    }, 'image/png');
-            } else {
                 canvas.toBlob(async (blob) => {
                     if (blob) {
                         let pngFile = frameCount.toString().padStart(7, '0');
@@ -120,7 +111,6 @@ function App() {
                         ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(url));
                     }
                 }, 'image/png');
-            }
         };
 
         // Start animation
@@ -191,14 +181,12 @@ function App() {
         <div className="App">
             <p/>
             <div style={{position: "relative", height: "500px"}}>
-
-                {dataURL &&
-                    <img src={dataURL} alt="Canvas Image" style={{position: "absolute", left: 0, zIndex: 1000}}/>}
+                <canvas ref={canvasRef} width="898" height="253"
+                        // border: '1px solid #000'
+                        style={{position: "absolute", left: 0, zIndex: 1000}}></canvas>
                 <video src={videoSrc} ref={videoRef} controls style={{"position": "absolute", "left": 0}}></video>
             </div>
             <br/>
-            <canvas ref={canvasRef} width="898" height="253"
-                    style={{border: '1px solid #000', display: "none"}}></canvas>
 
             <button onClick={doPreview}>Preview</button>
             <button onClick={doTranscode}>Start</button>
