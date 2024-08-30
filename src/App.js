@@ -41,11 +41,29 @@ function App() {
 
         const drawSubtitle = (subtitle, opacity) => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(subtitle.text, canvas.width / 2, canvas.height - 5);
+            // ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+            // ctx.font = '12px Arial';
+            // ctx.textAlign = 'center';
+            // ctx.textBaseline = 'bottom';
+            // ctx.fillText(subtitle.text, canvas.width / 2, canvas.height - 5);
+
+            let fontSize = 48;
+            if (opacity >= 0 && opacity < 0.3) {
+                fontSize = fontSize + (Math.abs(0.15 - Math.abs(opacity - 0.15)) * fontSize) ;
+            }
+
+            ctx.font = `bold ${fontSize}px Arial`; // Bold font
+            ctx.textAlign = 'center'; // Center the text horizontally
+            ctx.textBaseline = 'middle'; // Center the text vertically
+            ctx.fillStyle = 'white'; // Text color
+
+            // Shadow for outline effect
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = 'black'; // Outline color
+            ctx.strokeText(subtitle.text, canvas.width / 2, canvas.height / 2); // Draw outline
+
+            // Draw the text
+            ctx.fillText(subtitle.text, canvas.width / 2, canvas.height / 2); // Draw text
         }
 
         const animate = async () => {
@@ -144,7 +162,7 @@ function App() {
             <p/>
             <video src={videoSrc} controls></video>
             <br/>
-            <canvas ref={canvasRef} width="256" height="240" style={{border:'1px solid #000'}}></canvas>
+            <canvas ref={canvasRef} width="898" height="253" style={{border:'1px solid #000', display: "none"}}></canvas>
 
             {dataURL && <img src={dataURL} alt="Canvas Image" />}
             <button onClick={doTranscode}>Start</button>
