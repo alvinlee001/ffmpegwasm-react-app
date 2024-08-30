@@ -69,7 +69,7 @@ function App() {
         }
 
         const animate = async () => {
-            currentTime += 0.05; // Increment time by 50ms
+            currentTime += 0.025; // Increment time by 50ms
 
             const subtitle = subtitles.find(s => currentTime >= s.start && currentTime <= s.end);
 
@@ -89,7 +89,7 @@ function App() {
             await captureFrame(frameCount);
 
             frameCount++;
-            if (frameCount < 1000) {
+            if (frameCount < 500) {
                 requestAnimationFrame(animate);
             } else {
                 callback()
@@ -146,12 +146,13 @@ function App() {
             // await ffmpeg.run('-i', 'test.avi', 'test.mp4');
             await ffmpeg.run(
                 '-i', 'test.mp4',
-                '-framerate', '30', '-loop', '1', '-i', '%07d.png',
+                '-framerate', '60', '-i', '%07d.png',
                 '-c:v', 'libx264',
                 '-c:a', 'copy',
                 // '-b:v', '2M',
                 '-crf', '11',
-                '-filter_complex', 'overlay=shortest=1',
+                // '-crf', '40',
+                '-filter_complex', 'overlay',
                 '-threads', '8',
                 'output.mp4');
             setMessage('Complete transcoding');
