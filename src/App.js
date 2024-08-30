@@ -1,6 +1,9 @@
 import React, {useRef, useState} from 'react';
-import {createFFmpeg, fetchFile} from '@ffmpeg/ffmpeg';
+import {FFmpeg } from '@ffmpeg/ffmpeg';
+import {fetchFile, toBlobURL} from '@ffmpeg/util';
 import './App.css';
+
+const baseURL = 'https://unpkg.com/@ffmpeg/core-mt@0.12.6/dist/umd'
 
 function pad(num, size) {
     num = num.toString();
@@ -108,7 +111,7 @@ function App() {
                     if (blob) {
                         let pngFile = frameCount.toString().padStart(7, '0');
                         const url = await blobToDataURL(blob);
-                        ffmpeg.FS('writeFile', `${pngFile}.png`, await fetchFile(url));
+                        await ffmpeg.writeFile(`${pngFile}.png`, await fetchFile(url));
                     }
                 }, 'image/png');
         };
@@ -128,14 +131,16 @@ function App() {
         });
     };
 
-    const ffmpeg = createFFmpeg({
-        log: true,
-    });
+    const ffmpeg = new FFmpeg();
     const doPreview = async () => {
 
         const video = videoRef.current;
         setMessage('Previewing output video');
-        await ffmpeg.load();
+            await ffmpeg.load({
+                coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+            });
         video.currentTime = 0;
         video.play()
         startAnimation(async () => {
@@ -146,11 +151,15 @@ function App() {
     }
     const doTranscode = async () => {
         setMessage('Loading ffmpeg-core.js');
-        await ffmpeg.load();
+        await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+            // workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+        });
         startAnimation(async () => {
 
             setMessage('Start transcoding');
-            ffmpeg.FS('writeFile', 'test.mp4', await fetchFile('/waves.mp4'));
+            await ffmpeg.writeFile( 'test.mp4', await fetchFile('/waves.mp4'));
             // for (let i = 0; i < frames.length; i++) {
             //   let pngFile = i.toString().padStart(7, '0');
             //   console.log('frames lol', frames[i])
@@ -161,19 +170,23 @@ function App() {
             // }
 
             // await ffmpeg.run('-i', 'test.avi', 'test.mp4');
-            await ffmpeg.run(
+            ffmpeg.on('log', ({ message }) => {
+                console.log(message);
+            });
+            await ffmpeg.exec([
                 '-i', 'test.mp4',
+                '-thread_queue_size', '4096',
                 '-framerate', ''+1/timeIncrement, '-i', '%07d.png',
                 '-c:v', 'libx264',
                 '-c:a', 'copy',
                 // '-b:v', '2M',
-                // '-crf', '11',
-                '-crf', '40',
+                '-crf', '11',
+                // '-crf', '40',
                 '-filter_complex', 'overlay',
-                '-threads', '8',
-                'output.mp4');
+                // '-threads', '8',
+                'output.mp4']);
             setMessage('Complete transcoding');
-            const data = ffmpeg.FS('readFile', 'output.mp4');
+            const data = ffmpeg.readFile( 'output.mp4');
             setVideoSrc(URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' })));
         });
     };
